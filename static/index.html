@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Real-time Audio Streaming</title>
+</head>
+<body>
+    <script>
+        let audioContext = null;
+        let source;
+        let socket;
+        let currentSource = null;
+
+        function initAudio(){
+            if(audioContext == null){
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                source = audioContext.createBufferSource();
+            }
+
+            let audioBuffer;
+            socket = new WebSocket('ws://localhost:8000/audio_stream');
+
+            socket.onmessage = async function(event) {
+                // Check if event.data is already an ArrayBuffer
+                if (event.data instanceof ArrayBuffer) {
+                    decodeAndPlayAudio(event.data);
+                } else if (event.data instanceof Blob) {
+                    // Convert Blob to ArrayBuffer
+                    const arrayBuffer = await event.data.arrayBuffer();
+                    decodeAndPlayAudio(arrayBuffer);
+                } else {
+                    console.error("Received data is neither an ArrayBuffer nor a Blob.");
+                }
+            };
+
+            socket.onclose = async function(event){
+
+            }
+        
+
+            function decodeAndPlayAudio(arrayBuffer) {
+                audioContext.decodeAudioData(arrayBuffer, function(buffer) {
+                    // Stop the previous source if it exists
+                    if (currentSource) {
+                        currentSource.stop();
+                    }
+
+                    currentSource = audioContext.createBufferSource();
+                    currentSource.buffer = buffer;
+                    currentSource.connect(audioContext.destination);
+                    currentSource.start();
+                }, function(e) {
+                    console.error("Error with decoding audio data" + e);
+                });
+            }
+
+
+            socket.onopen = function(e) {
+                console.log("Connection established!");
+            };
+        }
+    </script>
+    <button>Load Model</button>
+    <button onclick="initAudio()">Audio Stream</button>
+</body>
+</html>

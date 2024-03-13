@@ -1,0 +1,11 @@
+venv
+jennifergarner.wav
+xtts-server-test/*
+xtts-server-test
+tempfiles
+output
+DeeoSpeed
+__pycache__
+rhubarb.exe
+xtts_streaming.wav
+res
