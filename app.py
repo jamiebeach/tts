@@ -76,7 +76,7 @@ def run_rhubarb(chunk):
         torchaudio.save(temp_wav.name, chunk.squeeze().unsqueeze(0).cpu(), 24000)
         rhubarb_output = tempfile.NamedTemporaryFile(delete=False, suffix=".txt", dir=temp_files_dir)
         try:
-            result = subprocess.run(["./rhubarb/rhubarb", "-o", rhubarb_output.name, temp_wav.name], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            result = subprocess.run(["./rhubarb/rhubarb", "-r", "phonetic", "-o", rhubarb_output.name, temp_wav.name], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             print(result.stdout.decode())  # Now this should work as stdout is captured
             print(result.stderr.decode())  # Same for stderr
         except subprocess.CalledProcessError as e:
