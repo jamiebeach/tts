@@ -46,7 +46,7 @@ pip3 install torch torchvision torchaudio TTS deepspeed FASTAPI uvicorn websocke
 ```bash
 wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.13.0/Rhubarb-Lip-Sync-1.13.0-Linux.zip
 unzip Rhubarb-Lip-Sync*.zip
-mv Rhubarb* Rhubarb
+mv Rhubarb-Lip-Sync-1.13.0-Linux rhubarb
 rm *.zip
 ```
 
