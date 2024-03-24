@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Real-time Audio Streaming and Viseme Animation</title>
+    <style>
+        #visemeDisplay img {
+            width: 100px; /* Adjust as needed */
+            height: auto;
+        }
+    </style>    
+</head>
+<body>
+    <!-- Input for user text and a submit button -->
+    <div id="output"></div>
+    <input type="text" id="textInput" placeholder="Type something...">
+    <button onclick="sendText()">Submit</button>
+
+    <div id="visemeDisplay"><img src="/static/lisa-B.png" alt="Viseme"></div>
+
+    <script>
+        let audioContext = null;
+        let audioBuffer = [];
+        let visemeData = [];
+
+        let domain = '{{domain}}';
+        domain = domain.replace(/\/$/, '');
+        let url = ('{{protocol}}'=='https')?'wss':'ws';
+        let port = ('{{port}}'=='None')?'':':{{port}}';
+        url = url + '://' + domain + port + '/audio_stream';
+        document.getElementById('output').innerHTML = url;
+        let socket = new WebSocket(url);
+        socket.binaryType = 'arraybuffer'; // Make sure this line is present
+        let animationLoopRunning = false;
+        
+        socket.onopen = function(event) {
+            console.log('WebSocket is open now.');
+            // Additional setup or initial messages to the server can be handled here
+        };
+
+        socket.onmessage = async (event) => {
+            if (event.data === "END") {
+                console.log('End of processing.');
+                // Handle end of processing if needed
+                return;
+            } else if (typeof event.data === 'string') {
+                // Handle viseme data
+                const visemeJson = JSON.parse(event.data);
+                visemeData.push(...visemeJson);
+                if (!animationLoopRunning && visemeData.length > 2) {
+                    playNextAudioBuffer(startVisemeSequence);
+                    // Start the loop to display visemes
+                    //setTimeout(() => playNextAudioBuffer(), 50);
+                }
+            } else {
+                // This branch now properly handles ArrayBuffer data
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const audioChunk = await audioContext.decodeAudioData(event.data);
+                audioBuffer.push(audioChunk);
+            }
+        };
+
+        socket.onclose = function(event) {
+            console.log('WebSocket is closed now.');
+            animationLoopRunning = false;
+        };
+
+        function sendText() {
+            const text = document.getElementById('textInput').value;
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(text);
+            } else {
+                console.log('WebSocket is not open. Cannot send text.');
+            }
+        }
+
+        async function playNextAudioBuffer(onstart=undefined) {
+            if (audioBuffer.length > 0) {
+                const bufferToPlay = audioBuffer.shift();
+                const source = audioContext.createBufferSource();
+                source.buffer = bufferToPlay;
+                source.connect(audioContext.destination);
+                source.start(0);
+                if(onstart)
+                    setTimeout(()=>onstart(), 500);
+                source.onended = playNextAudioBuffer;
+            }
+        }
+
+        let visemeStartTime = 0;
+
+        function startVisemeSequence() {
+            if (!animationLoopRunning) {
+                animationLoopRunning = true;
+                visemeStartTime = Date.now();
+                displayVisemes();
+            }
+        }
+
+        function displayVisemes() {
+            requestAnimationFrame(function updateVisemeDisplay(timestamp) {
+                let n = Date.now();
+                if(visemeData.length > 0 && visemeData[0].time == 0){
+                    visemeStartTime = n;
+                }
+                let elapsedTime = (n - visemeStartTime) / 1000;
+                if (visemeData.length > 0 && elapsedTime >= visemeData[0].time) {
+                    let vd = visemeData.shift();
+                    document.getElementById('visemeDisplay').innerHTML = `<img src="/static/lisa-${vd.viseme}.png" alt="Viseme">`;
+                }
+                if (animationLoopRunning) {
+                    if(visemeData.length == 0){
+                       animationLoopRunning = false;
+                    }
+                    requestAnimationFrame(updateVisemeDisplay);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

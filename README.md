@@ -27,3 +27,37 @@ This isn't production ready code at all. Just experiments and commiting to git r
 I wasn't able to get DeepSpeed working with the xttsv2 on Windows but when I have done this previously for other projects, deepspeed does seem to help speed up xttsv2 inference significantly.
 
 I've only tried this particular code on Windows. I don't know how well rhubarb works yet on Linux, but intention would be to ultimately use this as a basis for an xtts\lip-sync server for other projects.
+
+### Instructions for running on Ubuntu
+
+1. Setup python venv
+```bash
+sudo apt install python3.10-venv
+python3 -m venv ./venv
+source ./venv/bin/activate
+```
+
+2. Install dependencies
+```bash
+pip3 install torch torchvision torchaudio TTS deepspeed FASTAPI uvicorn websockets
+```
+
+3. Download Rhubarb
+```bash
+wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.13.0/Rhubarb-Lip-Sync-1.13.0-Linux.zip
+unzip Rhubarb-Lip-Sync*.zip
+mv Rhubarb* Rhubarb
+rm *.zip
+```
+
+4. Download xtts model
+```bash
+sudo apt install git-lfs
+git lfs install
+git clone https://huggingface.co/coqui/XTTS-v2
+```
+
+5. You should now be able to run the server
+```bash
+gunicorn app:app
+```
