@@ -59,5 +59,5 @@ git clone https://huggingface.co/coqui/XTTS-v2
 
 5. You should now be able to run the server
 ```bash
-gunicorn app:app
+uvicorn app:app
 ```
