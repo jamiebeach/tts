@@ -13,10 +13,7 @@ Repo includes :
 In order to use this, you will need to ensure you have a working python venv with the following :
 - FastAPI
 - coqui tts (xttsv2)
-- pydub
 - uvicorn 
-
-(note that pydub isn't reall used in the end but I haven't removed the imports)
 
 You will also need to:
 - download rhubarb and place in the same directory as the app.py
