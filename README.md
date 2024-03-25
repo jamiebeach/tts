@@ -23,7 +23,11 @@ This isn't production ready code at all. Just experiments and commiting to git r
 
 I wasn't able to get DeepSpeed working with the xttsv2 on Windows but when I have done this previously for other projects, deepspeed does seem to help speed up xttsv2 inference significantly.
 
-I've only tried this particular code on Windows. I don't know how well rhubarb works yet on Linux, but intention would be to ultimately use this as a basis for an xtts\lip-sync server for other projects.
+This will run on either windows or linux. For Windows, would have to modify the code to correctly point to the Rhubarb.exe path. Also note that deepspeed is super annoying to get working on windows. You are probably just better off running this in WSL if running windows. Deepspeed provides a significant speed boost for xttsv2 so it's worthwhile.
+
+I've gotten near real-time performance when running on an A6000 on Lambda Labs cloud gpu. The A10's seem to be more available and are pretty good too (also a few cents/hour less expensive). If running on cloud gpu, recommend setting up a tunnel with ngrok. Works very well.
+
+The intention of this app is to provide a backend to VRMChatbot (also available in my git repos). This provides a websocket based integration with xttsv2 and also provides vieseme data for lip-sync with the VRM models in that application.
 
 ### Instructions for running on Ubuntu
 
