@@ -15,6 +15,7 @@ import threading
 import json
 import tempfile
 import time
+import re
 
 app = FastAPI()
 config = XttsConfig()
@@ -104,26 +105,26 @@ async def audio_stream(websocket: WebSocket):
             print('text_data == end')
             break
 
-        chunks = model.inference_stream(
-            text_data,
-            "en",
-            gpt_cond_latent,
-            speaker_embedding,
-            50
-        )
-        print('processed chunk')
+        # Segment the received text according to the rules
+        segments = segment_text(text_data)
+        
+        for segment in segments:
+            # Placeholder for your model processing logic with the segmented text
+            # Here, you would pass 'segment' to your TTS model to generate audio data
+            chunks = model.inference_stream(
+                segment,
+                "en",
+                gpt_cond_latent,
+                speaker_embedding,
+                50
+            )
 
-        wav_chunks = []
-
-        # Assuming 'chunks' is the list of audio chunks you generated
-        for chunk in chunks:
-            wav_chunks.append(chunk)
-
-        print('converting chunks to wav')
-        wav = torch.cat(wav_chunks, dim=0)
-
-        print('processing audio chunk')
-        await process_audio_chunk(websocket, wav, wav_chunks)
+            # Assuming 'chunks' is the list of audio chunks you generated
+            # Convert these chunks to WAV, generate viseme data, and stream back to the client
+            # Placeholder for your audio processing and WebSocket streaming logic
+            wav_chunks = [chunk for chunk in chunks]
+            wav = torch.cat(wav_chunks, dim=0)
+            await process_audio_chunk(websocket, wav, wav_chunks)
 
         # Indicate end of processing for this text input
         await websocket.send_text("END")
@@ -151,6 +152,60 @@ def safe_remove(file_path, max_attempts=5, wait_seconds=1):
             time.sleep(wait_seconds)  # Wait for a bit before retrying
     else:
         print(f"Failed to delete {file_path} after {max_attempts} attempts.")
+
+
+def segment_text(text, max_length=200):
+    """
+    Segments the given text according to specified rules:
+    1. The text is segmented into chunks of `max_length` characters or less.
+    2. Only full sentences are processed in each chunk, if possible.
+    3. If a sentence exceeds `max_length`, it's preferably split at a comma.
+    4. If not feasible to split properly, split at `max_length`.
+    
+    Args:
+    - text (str): The text to segment.
+    - max_length (int): Maximum length of each text segment.
+    
+    Returns:
+    - List[str]: Segmented text adhering to the rules.
+    """
+    # Function to find the best split point for a sentence
+    def find_best_split_point(sentence, max_length):
+        # Prefer to split at the last comma before max_length if possible
+        last_comma = sentence.rfind(',', 0, max_length)
+        if last_comma > -1:
+            return last_comma + 1  # Include the comma in the segment
+        return max_length
+
+    segments = []
+    current_segment = ""
+
+    sentences = re.split(r'(?<=[.!?]) +', text)  # Split text into sentences
+    for sentence in sentences:
+        # Check if adding the next sentence would exceed the max_length
+        if len(current_segment) + len(sentence) <= max_length:
+            current_segment += " " + sentence if current_segment else sentence
+        else:
+            # If the current segment is not empty, add it to segments
+            if current_segment:
+                segments.append(current_segment)
+                current_segment = ""
+
+            # Handle long sentences
+            while len(sentence) > max_length:
+                split_point = find_best_split_point(sentence, max_length)
+                segments.append(sentence[:split_point])
+                sentence = sentence[split_point:].lstrip()
+
+            # Add the remainder of the sentence to the current segment
+            current_segment = sentence
+
+    # Add the last segment if any remains
+    if current_segment:
+        segments.append(current_segment)
+
+    return segments
+
 
 # Replace direct os.remove calls with safe_remove in your run_rhubarb function
 # Example:
