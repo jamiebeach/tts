@@ -43,24 +43,32 @@
                 console.log('End of processing.');
                 // Handle end of processing if needed
                 return;
-            } else if (typeof event.data === 'string') {
-                // Handle viseme data
-                const visemeJson = JSON.parse(event.data);
-                visemeData.push(...visemeJson);
-                if (!animationLoopRunning && visemeData.length > 2) {
-                    playNextAudioBuffer(startVisemeSequence);
-                    // Start the loop to display visemes
-                    //setTimeout(() => playNextAudioBuffer(), 50);
-                }
-            } else {
-                // This branch now properly handles ArrayBuffer data
+            }
+
+            // Since we now send everything as JSON, we always parse the event.data.
+            const messageJson = JSON.parse(event.data);
+
+            // Check if the message is actually data (it will have audioBase64 and visemeData)
+            if (messageJson.audioBase64 && messageJson.visemeData) {
+                // Decode the base64 audio string to ArrayBuffer
+                const audioArrayBuffer = await fetch(`data:audio/wav;base64,${messageJson.audioBase64}`).then(response => response.arrayBuffer());
+
+                // Ensure the audio context is initialized
                 if (!audioContext) {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 }
-                const audioChunk = await audioContext.decodeAudioData(event.data);
+
+                // Decode the ArrayBuffer into an AudioBuffer and push it to the audioBuffer array
+                const audioChunk = await audioContext.decodeAudioData(audioArrayBuffer);
                 audioBuffer.push(audioChunk);
+
+                // Handle viseme data, which is unchanged
+                visemeData.push(...messageJson.visemeData);
+                if (!animationLoopRunning && visemeData.length > 2) {
+                    playNextAudioBuffer(startVisemeSequence);
+                }
             }
-        };
+        };        
 
         socket.onclose = function(event) {
             console.log('WebSocket is closed now.');
@@ -84,7 +92,7 @@
                 source.connect(audioContext.destination);
                 source.start(0);
                 if(onstart)
-                    setTimeout(()=>onstart(), 500);
+                   onstart();
                 source.onended = playNextAudioBuffer;
             }
         }

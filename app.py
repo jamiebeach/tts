@@ -16,6 +16,7 @@ import json
 import tempfile
 import time
 import re
+import base64
 
 app = FastAPI()
 config = XttsConfig()
@@ -58,17 +59,34 @@ async def load():
     gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=["./samples/sample.mp3"])
 
 async def process_audio_chunk(websocket, chunk, wav_chunks):
+    # Create an in-memory buffer for the audio data.
     buffer = io.BytesIO()
-    #wav_chunks.append(chunk)
+    # Save the chunk as a WAV file in the buffer.
     torchaudio.save(buffer, chunk.squeeze().unsqueeze(0).cpu(), 24000, format='wav')
     buffer_bytes = buffer.getvalue()
-    await websocket.send_bytes(buffer_bytes)
+    
+    # Convert the audio bytes to a base64 encoded string.
+    audio_base64 = base64.b64encode(buffer_bytes).decode('utf-8')
+    
+    # Run rhubarb on the audio chunk to get viseme data.
+    viseme_data = await asyncio.to_thread(run_rhubarb, chunk)
+    
+    # Combine the audio (as base64) and viseme data into a single dictionary.
+    combined_data = {
+        'audioBase64': audio_base64,
+        'visemeData': viseme_data,
+    }
+    
+    # Convert the combined data to JSON.
+    combined_json = json.dumps(combined_data)
+    
+    # Send the combined JSON over WebSocket.
+    await websocket.send_text(combined_json)
+    
+    # Artificial delay (if still needed)
     await asyncio.sleep(0.05)
 
-    # Run rhubarb on the audio chunk
-    viseme_data = await asyncio.to_thread(run_rhubarb, chunk)
-    viseme_json = json.dumps(viseme_data)
-    await websocket.send_text(viseme_json)
+
 
 def run_rhubarb(chunk):
     global temp_files_dir
@@ -154,7 +172,7 @@ def safe_remove(file_path, max_attempts=5, wait_seconds=1):
         print(f"Failed to delete {file_path} after {max_attempts} attempts.")
 
 
-def segment_text(text, max_length=200):
+def segment_text(text, max_length=100):
     """
     Segments the given text according to specified rules:
     1. The text is segmented into chunks of `max_length` characters or less.
